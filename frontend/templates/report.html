@@ -1,0 +1,894 @@
+{% extends "base.html" %}
+
+{% block title %}Gerar Relatório - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="bi bi-file-earmark-text text-primary me-2"></i>Gerar Relatório Geopolítico
+        </h1>
+        <p class="text-muted">
+            Gere um relatório completo com análise cruzada, detecção de viés, score de confiabilidade
+            e projeção de cenários futuros.
+        </p>
+    </div>
+</div>
+
+<!-- OpenAI Warning -->
+{% if not openai_configured %}
+<div class="alert alert-warning" role="alert">
+    <i class="bi bi-exclamation-triangle me-2"></i>
+    <strong>Atenção:</strong> A API da OpenAI não está configurada.
+    As análises avançadas (resumo, detecção de viés, cenários) não estarão disponíveis.
+    Configure a variável <code>OPENAI_API_KEY</code> para habilitar todas as funcionalidades.
+</div>
+{% endif %}
+
+<!-- Report Form -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="POST" id="report-form">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="topic" class="form-label">Tema do relatório</label>
+                    <input type="text"
+                           class="form-control form-control-lg"
+                           id="topic"
+                           name="topic"
+                           value="{{ topic or request.args.get('topic', '') }}"
+                           placeholder="Ex: Russia-Ukraine conflict, US-China relations"
+                           required
+                           minlength="2">
+                </div>
+                <div class="col-md-3">
+                    <label for="min_sources" class="form-label">Mínimo de fontes</label>
+                    <select class="form-select form-select-lg" id="min_sources" name="min_sources">
+                        <option value="2">2 fontes</option>
+                        <option value="3" selected>3 fontes (recomendado)</option>
+                        <option value="5">5 fontes</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="include_scenarios" name="include_scenarios" checked>
+                        <label class="form-check-label" for="include_scenarios">Incluir cenários futuros</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary btn-lg" id="report-btn">
+                    <i class="bi bi-rocket-takeoff me-2"></i>Gerar Relatório
+                </button>
+                <small class="text-muted ms-3">
+                    <i class="bi bi-clock me-1"></i>Este processo pode levar alguns minutos
+                </small>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Error Message -->
+{% if error %}
+<div class="alert alert-danger" role="alert">
+    <i class="bi bi-exclamation-triangle me-2"></i>{{ error }}
+</div>
+{% endif %}
+
+<!-- Loading Indicator -->
+<div id="loading" class="text-center py-5 d-none">
+    <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+        <span class="visually-hidden">Gerando...</span>
+    </div>
+    <h5 class="mt-4" id="loading-title">Gerando relatório...</h5>
+    <p class="text-muted" id="loading-message">
+        Coletando artigos de múltiplas fontes, cruzando informações e realizando análise via IA.
+    </p>
+    <div class="progress mt-3" style="height: 20px; max-width: 400px; margin: 0 auto;">
+        <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" id="loading-progress" style="width: 5%">
+            <span id="loading-percent">5%</span>
+        </div>
+    </div>
+    <p class="text-muted small mt-2" id="loading-status">Iniciando...</p>
+</div>
+
+<!-- Error from async -->
+<div id="async-error" class="alert alert-danger d-none" role="alert">
+    <i class="bi bi-exclamation-triangle me-2"></i>
+    <span id="async-error-message"></span>
+</div>
+
+<!-- Report Results -->
+{% if report %}
+<div id="report-results">
+    <!-- Score Card -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-3 text-center">
+                    <div class="confidence-score {{ report.confidence_score|score_color }}">
+                        {{ report.confidence_score }}
+                    </div>
+                    <p class="mb-0 fw-bold">Score de Confiabilidade</p>
+                    <span class="badge bg-{{ report.confidence_score|score_color }}">
+                        {{ report.confidence_score|score_label }}
+                    </span>
+                </div>
+                <div class="col-md-9">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <h4>{{ report.sources_count }}</h4>
+                            <small class="text-muted">Fontes utilizadas</small>
+                        </div>
+                        <div class="col-4">
+                            <h4>{{ "%.1f"|format(report.convergence_score) }}%</h4>
+                            <small class="text-muted">Convergência</small>
+                        </div>
+                        <div class="col-4">
+                            <h4>{{ report.generated_at|datetime }}</h4>
+                            <small class="text-muted">Gerado em</small>
+                        </div>
+                    </div>
+
+                    {% if report.alerts %}
+                    <div class="mt-3">
+                        {% for alert in report.alerts %}
+                        <span class="badge bg-warning text-dark me-1">
+                            <i class="bi bi-exclamation-triangle me-1"></i>{{ alert }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Sections -->
+    <div class="accordion" id="reportAccordion">
+        <!-- TL;DR -->
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#tldr">
+                    🧾 RESUMO CURTO (TL;DR)
+                </button>
+            </h2>
+            <div id="tldr" class="accordion-collapse collapse show" data-bs-parent="#reportAccordion">
+                <div class="accordion-body">
+                    {{ report.tldr }}
+                </div>
+            </div>
+        </div>
+
+        <!-- What Happened -->
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#what-happened">
+                    🌍 O QUE ACONTECEU
+                </button>
+            </h2>
+            <div id="what-happened" class="accordion-collapse collapse" data-bs-parent="#reportAccordion">
+                <div class="accordion-body">
+                    {{ report.what_happened }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Why It Matters -->
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#why-matters">
+                    ❓ POR QUE ISSO IMPORTA
+                </button>
+            </h2>
+            <div id="why-matters" class="accordion-collapse collapse" data-bs-parent="#reportAccordion">
+                <div class="accordion-body">
+                    {{ report.why_it_matters }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Winners and Losers -->
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#winners-losers">
+                    ⚔️ QUEM GANHA E QUEM PERDE
+                </button>
+            </h2>
+            <div id="winners-losers" class="accordion-collapse collapse" data-bs-parent="#reportAccordion">
+                <div class="accordion-body">
+                    {{ report.winners_losers }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Brazil Impact -->
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#brazil-impact">
+                    🇧🇷 IMPACTO PARA O BRASIL
+                </button>
+            </h2>
+            <div id="brazil-impact" class="accordion-collapse collapse" data-bs-parent="#reportAccordion">
+                <div class="accordion-body">
+                    {{ report.brazil_impact }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Manipulation Risk -->
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#manipulation">
+                    ⚠️ RISCO DE MANIPULAÇÃO
+                </button>
+            </h2>
+            <div id="manipulation" class="accordion-collapse collapse" data-bs-parent="#reportAccordion">
+                <div class="accordion-body">
+                    <pre class="mb-0" style="white-space: pre-wrap;">{{ report.manipulation_risk }}</pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Simple Explanation -->
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#simple">
+                    👩‍🏫 EXPLICAÇÃO SIMPLES PARA LEIGOS
+                </button>
+            </h2>
+            <div id="simple" class="accordion-collapse collapse" data-bs-parent="#reportAccordion">
+                <div class="accordion-body">
+                    {{ report.simple_explanation }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Future Scenarios -->
+        {% if report.short_term_scenario or report.medium_term_scenario or report.extreme_risk_scenario %}
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#scenarios">
+                    🔮 CENÁRIOS FUTUROS
+                </button>
+            </h2>
+            <div id="scenarios" class="accordion-collapse collapse" data-bs-parent="#reportAccordion">
+                <div class="accordion-body">
+                    <div class="row">
+                        {% if report.short_term_scenario %}
+                        <div class="col-md-4">
+                            <div class="card h-100 border-primary">
+                                <div class="card-header bg-primary text-white">
+                                    📍 Curto Prazo (1-3 meses)
+                                </div>
+                                <div class="card-body">
+                                    <h6>{{ report.short_term_scenario.titulo }}</h6>
+                                    <span class="badge bg-info">{{ report.short_term_scenario.probabilidade }}</span>
+                                    <p class="mt-2">{{ report.short_term_scenario.descricao }}</p>
+                                    {% if report.short_term_scenario.impacto_brasil %}
+                                    <p class="text-muted small">
+                                        <strong>🇧🇷 Brasil:</strong> {{ report.short_term_scenario.impacto_brasil }}
+                                    </p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if report.medium_term_scenario %}
+                        <div class="col-md-4">
+                            <div class="card h-100 border-warning">
+                                <div class="card-header bg-warning text-dark">
+                                    📍 Médio Prazo (6-12 meses)
+                                </div>
+                                <div class="card-body">
+                                    <h6>{{ report.medium_term_scenario.titulo }}</h6>
+                                    <span class="badge bg-info">{{ report.medium_term_scenario.probabilidade }}</span>
+                                    <p class="mt-2">{{ report.medium_term_scenario.descricao }}</p>
+                                    {% if report.medium_term_scenario.impacto_brasil %}
+                                    <p class="text-muted small">
+                                        <strong>🇧🇷 Brasil:</strong> {{ report.medium_term_scenario.impacto_brasil }}
+                                    </p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if report.extreme_risk_scenario %}
+                        <div class="col-md-4">
+                            <div class="card h-100 border-danger">
+                                <div class="card-header bg-danger text-white">
+                                    ⚠️ Risco Extremo
+                                </div>
+                                <div class="card-body">
+                                    <h6>{{ report.extreme_risk_scenario.titulo }}</h6>
+                                    <span class="badge bg-secondary">{{ report.extreme_risk_scenario.probabilidade }}</span>
+                                    <p class="mt-2">{{ report.extreme_risk_scenario.descricao }}</p>
+                                    {% if report.extreme_risk_scenario.impacto_brasil %}
+                                    <p class="text-muted small">
+                                        <strong>🇧🇷 Brasil:</strong> {{ report.extreme_risk_scenario.impacto_brasil }}
+                                    </p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Sources Used -->
+    {% if report.sources_used %}
+    <div class="card mt-4">
+        <div class="card-header">
+            <i class="bi bi-newspaper me-2"></i>Fontes Utilizadas
+        </div>
+        <div class="card-body">
+            <div class="row">
+                {% for source in report.sources_used %}
+                <div class="col-md-4 mb-2">
+                    <span class="badge bg-primary me-1">{{ source.name }}</span>
+                    <small class="text-muted">Score: {{ source.reputation_score }}</small>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Download -->
+    <div class="mt-4 text-center">
+        <button class="btn btn-success" onclick="downloadReport()">
+            <i class="bi bi-download me-2"></i>Baixar Relatório (TXT)
+        </button>
+        <button class="btn btn-outline-primary" onclick="window.print()">
+            <i class="bi bi-printer me-2"></i>Imprimir
+        </button>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.confidence-score {
+    font-size: 4rem;
+    font-weight: bold;
+    line-height: 1;
+}
+.confidence-score.success { color: #198754; }
+.confidence-score.warning { color: #ffc107; }
+.confidence-score.danger { color: #dc3545; }
+
+@media print {
+    .navbar, .footer, form, .btn { display: none !important; }
+    .accordion-collapse { display: block !important; }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentTaskId = null;
+let pollInterval = null;
+
+document.getElementById('report-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const topic = document.getElementById('topic').value;
+    const minSources = document.getElementById('min_sources').value;
+    const includeScenarios = document.getElementById('include_scenarios').checked;
+
+    // Show loading
+    document.getElementById('report-btn').disabled = true;
+    document.getElementById('report-btn').innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Iniciando...';
+    document.getElementById('loading').classList.remove('d-none');
+    document.getElementById('async-error').classList.add('d-none');
+
+    // Start async report generation
+    fetch('/api/report/async', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            topic: topic,
+            min_sources: parseInt(minSources),
+            include_scenarios: includeScenarios
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            showError(data.error);
+            return;
+        }
+
+        currentTaskId = data.task_id;
+        updateProgress(10, 'Tarefa iniciada, coletando artigos...');
+
+        // Start polling
+        pollInterval = setInterval(checkTaskStatus, 2000);
+    })
+    .catch(error => {
+        showError('Erro ao iniciar geração: ' + error.message);
+    });
+});
+
+function checkTaskStatus() {
+    if (!currentTaskId) return;
+
+    fetch('/api/tasks/' + currentTaskId)
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            showError(data.error);
+            stopPolling();
+            return;
+        }
+
+        updateProgress(data.progress, data.message);
+
+        if (data.status === 'completed') {
+            stopPolling();
+            // Reload page with results - or show inline
+            showReportResults(data.result);
+        } else if (data.status === 'failed') {
+            stopPolling();
+            showError(data.error || 'Falha ao gerar relatório');
+        }
+    })
+    .catch(error => {
+        console.error('Erro ao verificar status:', error);
+    });
+}
+
+function updateProgress(percent, message) {
+    const progressBar = document.getElementById('loading-progress');
+    const percentText = document.getElementById('loading-percent');
+    const statusText = document.getElementById('loading-status');
+
+    progressBar.style.width = percent + '%';
+    percentText.textContent = percent + '%';
+    statusText.textContent = message || 'Processando...';
+
+    if (percent >= 50) {
+        document.getElementById('loading-title').textContent = 'Analisando com IA...';
+    }
+    if (percent >= 80) {
+        document.getElementById('loading-title').textContent = 'Finalizando relatório...';
+    }
+}
+
+function showError(message) {
+    document.getElementById('loading').classList.add('d-none');
+    document.getElementById('async-error').classList.remove('d-none');
+    document.getElementById('async-error-message').textContent = message;
+    resetButton();
+}
+
+function stopPolling() {
+    if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+    }
+}
+
+function resetButton() {
+    document.getElementById('report-btn').disabled = false;
+    document.getElementById('report-btn').innerHTML = '<i class="bi bi-rocket-takeoff me-2"></i>Gerar Relatório';
+}
+
+function showReportResults(report) {
+    // Hide loading
+    document.getElementById('loading').classList.add('d-none');
+    resetButton();
+
+    // Store report for download
+    window.generatedReport = report;
+
+    // Render results directly
+    const resultsHtml = renderReportHtml(report);
+    let resultsDiv = document.getElementById('report-results');
+    if (!resultsDiv) {
+        resultsDiv = document.createElement('div');
+        resultsDiv.id = 'report-results';
+        document.querySelector('.card.shadow-sm.mb-4').after(resultsDiv);
+    }
+    resultsDiv.innerHTML = resultsHtml;
+}
+
+// Função para formatar texto em HTML bonito
+function formatText(text) {
+    if (!text || text === 'N/A') return '<p class="text-muted">Informação não disponível</p>';
+
+    // Escape HTML para segurança
+    let html = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+    // Processar markdown-like syntax
+    // Bold: **text** ou __text__
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+
+    // Italic: *text* ou _text_
+    html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
+
+    // Destacar países importantes
+    const countries = ['Brasil', 'Brazil', 'EUA', 'USA', 'Estados Unidos', 'United States', 'China', 'Rússia', 'Russia', 'Ucrânia', 'Ukraine', 'Israel', 'Irã', 'Iran', 'Alemanha', 'Germany', 'França', 'France', 'Reino Unido', 'UK', 'Índia', 'India', 'Japão', 'Japan'];
+    countries.forEach(country => {
+        const regex = new RegExp(`\\b(${country})\\b`, 'gi');
+        html = html.replace(regex, '<span class="actor-tag neutral">$1</span>');
+    });
+
+    // Detectar e formatar listas (linhas começando com - ou *)
+    const lines = html.split('\n');
+    let inList = false;
+    let result = [];
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+
+        if (line.match(/^[-*•]\s+/)) {
+            // Item de lista
+            if (!inList) {
+                result.push('<ul class="mb-3">');
+                inList = true;
+            }
+            result.push(`<li>${line.replace(/^[-*•]\s+/, '')}</li>`);
+        } else if (line.match(/^\d+\.\s+/)) {
+            // Lista numerada
+            if (!inList) {
+                result.push('<ol class="mb-3">');
+                inList = true;
+            }
+            result.push(`<li>${line.replace(/^\d+\.\s+/, '')}</li>`);
+        } else {
+            // Fechar lista se estava em uma
+            if (inList) {
+                result.push(result[result.length - 1].includes('<ol') ? '</ol>' : '</ul>');
+                inList = false;
+            }
+
+            // Parágrafo normal (se não estiver vazio)
+            if (line.length > 0) {
+                // Verificar se é um subtítulo
+                if (line.match(/^[A-Z][^.!?]*:$/)) {
+                    result.push(`<h5 class="mt-3 mb-2">${line}</h5>`);
+                } else {
+                    result.push(`<p>${line}</p>`);
+                }
+            }
+        }
+    }
+
+    // Fechar lista se terminou em uma
+    if (inList) {
+        result.push('</ul>');
+    }
+
+    return `<div class="report-content">${result.join('\n')}</div>`;
+}
+
+// Formatar o risco de manipulação com visual especial
+function formatManipulationRisk(text) {
+    if (!text || text === 'N/A') return '<p class="text-muted">Análise não disponível</p>';
+
+    let html = formatText(text);
+
+    // Adicionar indicadores visuais para níveis de risco
+    html = html.replace(/\b(alto|high|elevado|crítico|grave)\b/gi, '<span class="badge bg-danger">$1</span>');
+    html = html.replace(/\b(médio|medium|moderado)\b/gi, '<span class="badge bg-warning text-dark">$1</span>');
+    html = html.replace(/\b(baixo|low|mínimo)\b/gi, '<span class="badge bg-success">$1</span>');
+
+    return html;
+}
+
+function renderReportHtml(r) {
+    const scoreColor = r.confidence_score >= 70 ? 'success' : r.confidence_score >= 50 ? 'warning' : 'danger';
+    const scoreLabel = r.confidence_score >= 85 ? 'Muito Alta' : r.confidence_score >= 70 ? 'Alta' : r.confidence_score >= 50 ? 'Média' : r.confidence_score >= 30 ? 'Baixa' : 'Muito Baixa';
+    const meterClass = r.confidence_score >= 70 ? 'high' : r.confidence_score >= 50 ? 'medium' : 'low';
+
+    let scenariosHtml = '';
+    if (r.short_term_scenario || r.medium_term_scenario || r.extreme_risk_scenario) {
+        let cards = '';
+        if (r.short_term_scenario) {
+            cards += `
+            <div class="col-md-4 mb-3">
+                <div class="card h-100 border-primary shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <i class="bi bi-clock me-2"></i>Curto Prazo (1-3 meses)
+                    </div>
+                    <div class="card-body">
+                        <h6 class="card-title">${r.short_term_scenario.titulo}</h6>
+                        <span class="badge bg-info mb-2">${r.short_term_scenario.probabilidade}</span>
+                        <div class="report-content">${formatText(r.short_term_scenario.descricao)}</div>
+                        ${r.short_term_scenario.impacto_brasil ? `<div class="mt-2 p-2 bg-light rounded"><small><strong>🇧🇷 Brasil:</strong> ${r.short_term_scenario.impacto_brasil}</small></div>` : ''}
+                    </div>
+                </div>
+            </div>`;
+        }
+        if (r.medium_term_scenario) {
+            cards += `
+            <div class="col-md-4 mb-3">
+                <div class="card h-100 border-warning shadow-sm">
+                    <div class="card-header bg-warning text-dark">
+                        <i class="bi bi-calendar-event me-2"></i>Médio Prazo (6-12 meses)
+                    </div>
+                    <div class="card-body">
+                        <h6 class="card-title">${r.medium_term_scenario.titulo}</h6>
+                        <span class="badge bg-info mb-2">${r.medium_term_scenario.probabilidade}</span>
+                        <div class="report-content">${formatText(r.medium_term_scenario.descricao)}</div>
+                        ${r.medium_term_scenario.impacto_brasil ? `<div class="mt-2 p-2 bg-light rounded"><small><strong>🇧🇷 Brasil:</strong> ${r.medium_term_scenario.impacto_brasil}</small></div>` : ''}
+                    </div>
+                </div>
+            </div>`;
+        }
+        if (r.extreme_risk_scenario) {
+            cards += `
+            <div class="col-md-4 mb-3">
+                <div class="card h-100 border-danger shadow-sm">
+                    <div class="card-header bg-danger text-white">
+                        <i class="bi bi-exclamation-triangle me-2"></i>Risco Extremo
+                    </div>
+                    <div class="card-body">
+                        <h6 class="card-title">${r.extreme_risk_scenario.titulo}</h6>
+                        <span class="badge bg-secondary mb-2">${r.extreme_risk_scenario.probabilidade}</span>
+                        <div class="report-content">${formatText(r.extreme_risk_scenario.descricao)}</div>
+                        ${r.extreme_risk_scenario.impacto_brasil ? `<div class="mt-2 p-2 bg-light rounded"><small><strong>🇧🇷 Brasil:</strong> ${r.extreme_risk_scenario.impacto_brasil}</small></div>` : ''}
+                    </div>
+                </div>
+            </div>`;
+        }
+        scenariosHtml = `
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#scenarios">
+                    <i class="bi bi-graph-up-arrow me-2"></i>🔮 CENÁRIOS FUTUROS
+                </button>
+            </h2>
+            <div id="scenarios" class="accordion-collapse collapse">
+                <div class="accordion-body">
+                    <div class="row">${cards}</div>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    let sourcesHtml = '';
+    if (r.sources_used && r.sources_used.length > 0) {
+        const sourceCards = r.sources_used.map(s => {
+            const scoreClass = s.reputation_score >= 85 ? 'success' : s.reputation_score >= 70 ? 'primary' : 'warning';
+            return `
+            <div class="col-md-4 col-sm-6 mb-3">
+                <div class="d-flex align-items-center p-2 bg-light rounded">
+                    <div class="me-2">
+                        <span class="badge bg-${scoreClass}">${s.reputation_score}</span>
+                    </div>
+                    <div>
+                        <strong>${s.name}</strong>
+                        <br><small class="text-muted">${s.type}</small>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+
+        sourcesHtml = `
+        <div class="card mt-4 shadow-sm">
+            <div class="card-header bg-light">
+                <i class="bi bi-newspaper me-2"></i><strong>Fontes Utilizadas</strong>
+                <span class="badge bg-primary ms-2">${r.sources_used.length}</span>
+            </div>
+            <div class="card-body">
+                <div class="row">${sourceCards}</div>
+            </div>
+        </div>`;
+    }
+
+    let alertsHtml = '';
+    if (r.alerts && r.alerts.length > 0) {
+        alertsHtml = `
+        <div class="mt-3">
+            ${r.alerts.map(a => `<span class="badge bg-warning text-dark me-1 mb-1"><i class="bi bi-exclamation-triangle me-1"></i>${a}</span>`).join('')}
+        </div>`;
+    }
+
+    return `
+    <div class="fade-in-up">
+        <!-- Score Card -->
+        <div class="card shadow mb-4">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-3 text-center border-end">
+                        <div class="confidence-score ${scoreColor}">${r.confidence_score}</div>
+                        <p class="mb-1 fw-bold">Score de Confiabilidade</p>
+                        <span class="badge bg-${scoreColor} fs-6">${scoreLabel}</span>
+                        <div class="confidence-meter mt-3">
+                            <div class="meter-bar">
+                                <div class="meter-fill ${meterClass}" style="width: ${r.confidence_score}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-9">
+                        <div class="row g-3 text-center">
+                            <div class="col-4">
+                                <div class="report-stat">
+                                    <div class="stat-value">${r.sources_count}</div>
+                                    <div class="stat-label">Fontes utilizadas</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="report-stat">
+                                    <div class="stat-value">${(r.convergence_score || 0).toFixed(1)}%</div>
+                                    <div class="stat-label">Convergência</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="report-stat">
+                                    <div class="stat-value" style="font-size:1.2rem">${new Date(r.generated_at).toLocaleString('pt-BR')}</div>
+                                    <div class="stat-label">Gerado em</div>
+                                </div>
+                            </div>
+                        </div>
+                        ${alertsHtml}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Report Sections -->
+        <div class="accordion shadow-sm" id="reportAccordion">
+            <!-- TL;DR -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#tldr">
+                        <i class="bi bi-lightning-charge text-warning me-2"></i>🧾 RESUMO CURTO (TL;DR)
+                    </button>
+                </h2>
+                <div id="tldr" class="accordion-collapse collapse show">
+                    <div class="accordion-body">
+                        <div class="key-point">
+                            ${formatText(r.tldr)}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- O que aconteceu -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#what-happened">
+                        <i class="bi bi-globe text-primary me-2"></i>🌍 O QUE ACONTECEU
+                    </button>
+                </h2>
+                <div id="what-happened" class="accordion-collapse collapse">
+                    <div class="accordion-body">
+                        ${formatText(r.what_happened)}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Por que importa -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#why-matters">
+                        <i class="bi bi-question-circle text-info me-2"></i>❓ POR QUE ISSO IMPORTA
+                    </button>
+                </h2>
+                <div id="why-matters" class="accordion-collapse collapse">
+                    <div class="accordion-body">
+                        <div class="info-box">
+                            ${formatText(r.why_it_matters)}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quem ganha e perde -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#winners-losers">
+                        <i class="bi bi-trophy text-warning me-2"></i>⚔️ QUEM GANHA E QUEM PERDE
+                    </button>
+                </h2>
+                <div id="winners-losers" class="accordion-collapse collapse">
+                    <div class="accordion-body">
+                        ${formatText(r.winners_losers)}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Impacto Brasil -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#brazil-impact">
+                        <i class="bi bi-flag text-success me-2"></i>🇧🇷 IMPACTO PARA O BRASIL
+                    </button>
+                </h2>
+                <div id="brazil-impact" class="accordion-collapse collapse">
+                    <div class="accordion-body">
+                        <div class="success-box">
+                            ${formatText(r.brazil_impact)}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Risco de Manipulação -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#manipulation">
+                        <i class="bi bi-shield-exclamation text-danger me-2"></i>⚠️ RISCO DE MANIPULAÇÃO
+                    </button>
+                </h2>
+                <div id="manipulation" class="accordion-collapse collapse">
+                    <div class="accordion-body">
+                        <div class="warning-box">
+                            ${formatManipulationRisk(r.manipulation_risk)}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Explicação Simples -->
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#simple">
+                        <i class="bi bi-chat-heart text-primary me-2"></i>👩‍🏫 EXPLICAÇÃO SIMPLES PARA LEIGOS
+                    </button>
+                </h2>
+                <div id="simple" class="accordion-collapse collapse">
+                    <div class="accordion-body">
+                        <div class="p-3 bg-light rounded">
+                            ${formatText(r.simple_explanation)}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            ${scenariosHtml}
+        </div>
+
+        ${sourcesHtml}
+
+        <!-- Actions -->
+        <div class="mt-4 text-center">
+            <button class="btn btn-success btn-lg me-2" onclick="downloadReport()">
+                <i class="bi bi-download me-2"></i>Baixar Relatório
+            </button>
+            <button class="btn btn-outline-primary btn-lg" onclick="window.print()">
+                <i class="bi bi-printer me-2"></i>Imprimir
+            </button>
+        </div>
+    </div>`;
+}
+
+function downloadReport() {
+    {% if report %}
+    const report = `{{ report.formatted_report|safe if report else '' }}`;
+    {% else %}
+    const report = window.generatedReport ? window.generatedReport.formatted_report : '';
+    {% endif %}
+
+    if (!report) {
+        alert('Nenhum relatório disponível para download');
+        return;
+    }
+
+    const blob = new Blob([report], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `relatorio_geopolitico_${new Date().toISOString().split('T')[0]}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,50 @@
+# Core
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+pydantic==2.5.3
+pydantic-settings==2.1.0
+python-dotenv==1.0.0
+
+# OpenAI
+openai==1.12.0
+
+# Web Scraping
+requests==2.31.0
+beautifulsoup4==4.12.3
+lxml==5.1.0
+selenium==4.17.2
+webdriver-manager==4.0.1
+fake-useragent==1.4.0
+
+# Database (Firebase/Firestore)
+firebase-admin==6.4.0
+google-cloud-firestore==2.14.0
+
+# Scheduling
+apscheduler==3.10.4
+
+# Dashboard
+streamlit==1.31.0
+plotly==5.18.0
+
+# Frontend (Flask)
+flask==3.0.0
+
+# PDF Export
+reportlab==4.0.9
+weasyprint==60.2
+
+# Utilities
+tenacity==8.2.3
+python-dateutil==2.8.2
+httpx==0.26.0
+
+# Testing
+pytest>=7.0.0
+pytest-asyncio==0.23.4
+pytest-cov==4.1.0
+
+# Development
+black==24.1.1
+isort==5.13.2
+mypy==1.8.0

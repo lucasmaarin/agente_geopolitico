@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+
+{% block title %}{{ app_name }} - Início{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="hero-section text-center py-5 mb-5">
+    <h1 class="display-4 fw-bold">
+        <i class="bi bi-globe-americas text-primary"></i>
+        Agente de Inteligência Geopolítica
+    </h1>
+    <p class="lead text-muted">
+        Anti-Fake News • Multi-Fonte • Análise Profunda
+    </p>
+    <p class="col-lg-8 mx-auto">
+        Sistema inteligente que coleta notícias de múltiplas fontes confiáveis,
+        cruza informações, detecta viés e propaganda, e gera relatórios didáticos
+        com score de confiabilidade.
+    </p>
+
+    <div class="d-flex justify-content-center gap-3 mt-4">
+        <a href="{{ url_for('search') }}" class="btn btn-primary btn-lg">
+            <i class="bi bi-search me-2"></i>Buscar Notícias
+        </a>
+        <a href="{{ url_for('report') }}" class="btn btn-outline-primary btn-lg">
+            <i class="bi bi-file-earmark-text me-2"></i>Gerar Relatório
+        </a>
+    </div>
+</div>
+
+<!-- Status Cards -->
+<div class="row g-4 mb-5">
+    <div class="col-md-3">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body text-center">
+                <div class="display-4 text-primary mb-2">
+                    <i class="bi bi-newspaper"></i>
+                </div>
+                <h3 class="h2 fw-bold">{{ total_sources }}</h3>
+                <p class="text-muted mb-0">Fontes Ativas</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body text-center">
+                <div class="display-4 text-success mb-2">
+                    {% if api_online %}
+                        <i class="bi bi-check-circle"></i>
+                    {% else %}
+                        <i class="bi bi-x-circle text-danger"></i>
+                    {% endif %}
+                </div>
+                <h3 class="h5 fw-bold">
+                    {% if api_online %}Online{% else %}Offline{% endif %}
+                </h3>
+                <p class="text-muted mb-0">Status da API</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body text-center">
+                <div class="display-4 text-info mb-2">
+                    <i class="bi bi-robot"></i>
+                </div>
+                <h3 class="h5 fw-bold">
+                    {% if health and health.openai_configured %}
+                        Configurada
+                    {% else %}
+                        Não configurada
+                    {% endif %}
+                </h3>
+                <p class="text-muted mb-0">OpenAI API</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body text-center">
+                <div class="display-4 text-warning mb-2">
+                    <i class="bi bi-shield-check"></i>
+                </div>
+                <h3 class="h5 fw-bold">Anti-Fake News</h3>
+                <p class="text-muted mb-0">Verificação Multi-Fonte</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Features -->
+<div class="row g-4 mb-5">
+    <div class="col-12">
+        <h2 class="text-center mb-4">
+            <i class="bi bi-stars text-primary me-2"></i>Funcionalidades
+        </h2>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body">
+                <div class="feature-icon bg-primary bg-gradient text-white rounded-3 mb-3 p-3 d-inline-block">
+                    <i class="bi bi-collection fs-4"></i>
+                </div>
+                <h5>Coleta Multi-Fonte</h5>
+                <p class="text-muted">
+                    Coleta notícias de 13+ fontes internacionais confiáveis incluindo
+                    Reuters, AP News, BBC, e think tanks como CFR e CSIS.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body">
+                <div class="feature-icon bg-success bg-gradient text-white rounded-3 mb-3 p-3 d-inline-block">
+                    <i class="bi bi-diagram-3 fs-4"></i>
+                </div>
+                <h5>Cruzamento de Informações</h5>
+                <p class="text-muted">
+                    Identifica convergências e contradições entre fontes,
+                    garantindo que você tenha a visão completa dos fatos.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body">
+                <div class="feature-icon bg-warning bg-gradient text-white rounded-3 mb-3 p-3 d-inline-block">
+                    <i class="bi bi-exclamation-triangle fs-4"></i>
+                </div>
+                <h5>Detecção de Viés</h5>
+                <p class="text-muted">
+                    Identifica automaticamente viés político, ideológico e
+                    técnicas de propaganda em cada fonte analisada.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body">
+                <div class="feature-icon bg-info bg-gradient text-white rounded-3 mb-3 p-3 d-inline-block">
+                    <i class="bi bi-graph-up fs-4"></i>
+                </div>
+                <h5>Score de Confiabilidade</h5>
+                <p class="text-muted">
+                    Avaliação de 0 a 100 baseada em número de fontes, convergência,
+                    linguagem emocional e dados verificáveis.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body">
+                <div class="feature-icon bg-danger bg-gradient text-white rounded-3 mb-3 p-3 d-inline-block">
+                    <i class="bi bi-flag fs-4"></i>
+                </div>
+                <h5>Contexto Brasileiro</h5>
+                <p class="text-muted">
+                    Analisa o impacto de cada evento para o Brasil,
+                    conectando a geopolítica global com a realidade nacional.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body">
+                <div class="feature-icon bg-secondary bg-gradient text-white rounded-3 mb-3 p-3 d-inline-block">
+                    <i class="bi bi-person-video3 fs-4"></i>
+                </div>
+                <h5>Explicação para Leigos</h5>
+                <p class="text-muted">
+                    Versão didática de cada análise, usando linguagem simples
+                    e analogias do dia a dia.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sources Section -->
+<div class="row mb-5">
+    <div class="col-12">
+        <h2 class="text-center mb-4">
+            <i class="bi bi-newspaper text-primary me-2"></i>Fontes de Dados
+        </h2>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header bg-primary text-white">
+                <i class="bi bi-broadcast me-2"></i>Notícias Internacionais
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for source in news_sources[:5] %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ source.name }}
+                    <span class="badge bg-success rounded-pill">{{ source.reputation_score }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header bg-info text-white">
+                <i class="bi bi-building me-2"></i>Análise Geopolítica
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for source in analysis_sources[:5] %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ source.name }}
+                    <span class="badge bg-success rounded-pill">{{ source.reputation_score }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header bg-success text-white">
+                <i class="bi bi-flag me-2"></i>Fontes Brasileiras
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for source in brazil_sources %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ source.name }}
+                    <span class="badge bg-success rounded-pill">{{ source.reputation_score }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- CTA -->
+<div class="text-center py-5 bg-light rounded-3">
+    <h3>Pronto para começar?</h3>
+    <p class="text-muted">
+        Busque notícias sobre qualquer tema geopolítico e obtenha uma análise completa.
+    </p>
+    <a href="{{ url_for('report') }}" class="btn btn-primary btn-lg">
+        <i class="bi bi-rocket-takeoff me-2"></i>Gerar Primeiro Relatório
+    </a>
+</div>
+{% endblock %}

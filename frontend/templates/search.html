@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title %}Buscar Notícias - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="bi bi-search text-primary me-2"></i>Buscar Notícias
+        </h1>
+        <p class="text-muted">
+            Busque notícias sobre um tema em múltiplas fontes internacionais.
+        </p>
+    </div>
+</div>
+
+<!-- Search Form -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="POST" id="search-form">
+            <div class="row g-3">
+                <div class="col-md-8">
+                    <label for="topic" class="form-label">Tema para buscar</label>
+                    <input type="text"
+                           class="form-control form-control-lg"
+                           id="topic"
+                           name="topic"
+                           value="{{ topic }}"
+                           placeholder="Ex: Ukraine war, US elections, China trade"
+                           required
+                           minlength="2">
+                </div>
+                <div class="col-md-2">
+                    <label for="max_articles" class="form-label">Artigos por fonte</label>
+                    <select class="form-select form-select-lg" id="max_articles" name="max_articles">
+                        <option value="3">3</option>
+                        <option value="5" selected>5</option>
+                        <option value="10">10</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary btn-lg w-100" id="search-btn">
+                        <i class="bi bi-search me-2"></i>Buscar
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Error Message -->
+{% if error %}
+<div class="alert alert-danger" role="alert">
+    <i class="bi bi-exclamation-triangle me-2"></i>{{ error }}
+</div>
+{% endif %}
+
+<!-- Loading Indicator -->
+<div id="loading" class="text-center py-5 d-none">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Buscando...</span>
+    </div>
+    <p class="mt-3 text-muted">Buscando notícias em múltiplas fontes...</p>
+</div>
+
+<!-- Results -->
+{% if results %}
+<div class="card shadow-sm">
+    <div class="card-header bg-success text-white">
+        <div class="d-flex justify-content-between align-items-center">
+            <span>
+                <i class="bi bi-check-circle me-2"></i>
+                {{ results.articles_found }} artigos encontrados de {{ results.sources_used }} fontes
+            </span>
+            <small>{{ results.search_timestamp|datetime }}</small>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="list-group list-group-flush">
+            {% for article in results.articles %}
+            <div class="list-group-item">
+                <div class="d-flex w-100 justify-content-between">
+                    <h5 class="mb-1">
+                        <a href="{{ article.url }}" target="_blank" class="text-decoration-none">
+                            {{ article.title|truncate_text(100) }}
+                        </a>
+                    </h5>
+                    <small class="text-muted">
+                        {% if article.published_at %}
+                            {{ article.published_at|datetime }}
+                        {% endif %}
+                    </small>
+                </div>
+
+                <div class="mb-2">
+                    <span class="badge bg-primary">{{ article.source_name }}</span>
+                    <span class="badge bg-secondary">{{ article.language }}</span>
+                    {% if article.author %}
+                        <span class="badge bg-light text-dark">{{ article.author }}</span>
+                    {% endif %}
+                </div>
+
+                <p class="mb-1 text-muted">{{ article.content_preview|truncate_text(300) }}</p>
+
+                <div class="mt-2">
+                    <a href="{{ article.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-box-arrow-up-right me-1"></i>Ler artigo completo
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Action Buttons -->
+<div class="mt-4 text-center">
+    <a href="{{ url_for('report') }}?topic={{ topic }}" class="btn btn-success btn-lg">
+        <i class="bi bi-file-earmark-text me-2"></i>Gerar Relatório sobre "{{ topic }}"
+    </a>
+</div>
+{% endif %}
+
+<!-- Empty State -->
+{% if not results and not error and request.method == 'POST' %}
+<div class="text-center py-5">
+    <i class="bi bi-inbox display-1 text-muted"></i>
+    <h4 class="mt-3">Nenhum resultado encontrado</h4>
+    <p class="text-muted">Tente buscar por outro tema ou verifique a conexão com a API.</p>
+</div>
+{% endif %}
+
+<!-- Tips -->
+{% if not results and request.method == 'GET' %}
+<div class="card bg-light border-0">
+    <div class="card-body">
+        <h5><i class="bi bi-lightbulb text-warning me-2"></i>Dicas de busca</h5>
+        <ul class="mb-0">
+            <li>Use termos em inglês para melhores resultados (ex: "Ukraine war")</li>
+            <li>Seja específico: "US China trade tensions" ao invés de apenas "trade"</li>
+            <li>Combine país + tema: "Brazil climate policy", "Russia sanctions"</li>
+            <li>Para eventos recentes, os resultados serão mais relevantes</li>
+        </ul>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('search-form').addEventListener('submit', function() {
+    document.getElementById('search-btn').disabled = true;
+    document.getElementById('search-btn').innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Buscando...';
+    document.getElementById('loading').classList.remove('d-none');
+});
+</script>
+{% endblock %}

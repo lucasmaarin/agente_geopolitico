@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  # API Backend
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: geopolitica-api
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DATABASE_URL=sqlite:///./data/geopolitica.db
+      - DEBUG=false
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Dashboard Streamlit
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: geopolitica-dashboard
+    ports:
+      - "8501:8501"
+    environment:
+      - API_URL=http://api:8000/api/v1
+    command: ["streamlit", "run", "dashboard/streamlit_app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+    depends_on:
+      - api
+    restart: unless-stopped
+
+
+  # Scheduler (opcional - para coleta automática)
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: geopolitica-scheduler
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DATABASE_URL=sqlite:///./data/geopolitica.db
+      - SCHEDULER_INTERVAL_HOURS=6
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    command: ["python", "scheduler/tasks.py"]
+    depends_on:
+      - api
+    restart: unless-stopped
+    profiles:
+      - scheduler  # Só inicia com: docker-compose --profile scheduler up
+
+networks:
+  default:
+    name: geopolitica-network
+
+volumes:
+  data:
+  logs:

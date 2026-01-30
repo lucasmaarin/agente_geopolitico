@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Relatório: {{ report.topic }} - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="{{ url_for('history') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-2"></i>Voltar ao Histórico
+    </a>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header">
+        <h4 class="mb-0">
+            <i class="bi bi-file-earmark-text me-2"></i>{{ report.topic }}
+        </h4>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3 text-center">
+                <div class="display-4 fw-bold text-{{ report.confidence_score|score_color }}">
+                    {{ report.confidence_score }}
+                </div>
+                <p class="text-muted">Score de Confiabilidade</p>
+            </div>
+            <div class="col-md-9">
+                <dl class="row">
+                    <dt class="col-sm-4">Fontes utilizadas</dt>
+                    <dd class="col-sm-8">{{ report.sources_count }}</dd>
+
+                    <dt class="col-sm-4">Convergência</dt>
+                    <dd class="col-sm-8">{{ "%.1f"|format(report.convergence_score or 0) }}%</dd>
+
+                    <dt class="col-sm-4">Gerado em</dt>
+                    <dd class="col-sm-8">{{ report.generated_at|datetime }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Report Content -->
+{% if report.tldr %}
+<div class="card mb-3">
+    <div class="card-header">🧾 Resumo Curto (TL;DR)</div>
+    <div class="card-body">{{ report.tldr }}</div>
+</div>
+{% endif %}
+
+{% if report.what_happened %}
+<div class="card mb-3">
+    <div class="card-header">🌍 O Que Aconteceu</div>
+    <div class="card-body">{{ report.what_happened }}</div>
+</div>
+{% endif %}
+
+{% if report.why_it_matters %}
+<div class="card mb-3">
+    <div class="card-header">❓ Por Que Isso Importa</div>
+    <div class="card-body">{{ report.why_it_matters }}</div>
+</div>
+{% endif %}
+
+{% if report.winners_losers %}
+<div class="card mb-3">
+    <div class="card-header">⚔️ Quem Ganha e Quem Perde</div>
+    <div class="card-body">{{ report.winners_losers }}</div>
+</div>
+{% endif %}
+
+{% if report.brazil_impact %}
+<div class="card mb-3">
+    <div class="card-header">🇧🇷 Impacto para o Brasil</div>
+    <div class="card-body">{{ report.brazil_impact }}</div>
+</div>
+{% endif %}
+
+{% if report.manipulation_risk %}
+<div class="card mb-3">
+    <div class="card-header">⚠️ Risco de Manipulação</div>
+    <div class="card-body"><pre style="white-space: pre-wrap;">{{ report.manipulation_risk }}</pre></div>
+</div>
+{% endif %}
+
+{% if report.simple_explanation %}
+<div class="card mb-3">
+    <div class="card-header">👩‍🏫 Explicação Simples para Leigos</div>
+    <div class="card-body">{{ report.simple_explanation }}</div>
+</div>
+{% endif %}
+
+{% if report.future_scenarios %}
+<div class="card mb-3">
+    <div class="card-header">🔮 Cenários Futuros</div>
+    <div class="card-body">
+        <pre style="white-space: pre-wrap;">{{ report.future_scenarios|tojson(indent=2) }}</pre>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

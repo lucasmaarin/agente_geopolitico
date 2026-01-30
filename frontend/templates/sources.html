@@ -1,0 +1,431 @@
+{% extends "base.html" %}
+
+{% block title %}Fontes de Dados - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="bi bi-newspaper text-primary me-2"></i>Gerenciar Fontes de Dados
+        </h1>
+        <p class="text-muted">
+            Ative ou desative fontes, adicione fontes customizadas e gerencie a coleta de informações.
+        </p>
+    </div>
+</div>
+
+{% if error %}
+<div class="alert alert-danger" role="alert">
+    <i class="bi bi-exclamation-triangle me-2"></i>{{ error }}
+</div>
+{% endif %}
+
+<!-- Alert Messages -->
+<div id="alert-container"></div>
+
+<!-- Stats -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <h2 class="display-5 text-primary" id="total-sources">{{ sources|length }}</h2>
+                <p class="text-muted mb-0">Total de Fontes</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <h2 class="display-5 text-success" id="active-sources">{{ sources|selectattr('is_active', 'true')|list|length }}</h2>
+                <p class="text-muted mb-0">Fontes Ativas</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <h2 class="display-5 text-info">{{ by_type|length }}</h2>
+                <p class="text-muted mb-0">Tipos de Fonte</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <h2 class="display-5 text-warning">{{ by_region|length }}</h2>
+                <p class="text-muted mb-0">Regiões</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Action Buttons -->
+<div class="mb-4">
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addSourceModal">
+        <i class="bi bi-plus-circle me-2"></i>Adicionar Fonte
+    </button>
+    <button class="btn btn-outline-secondary" onclick="toggleShowInactive()">
+        <i class="bi bi-eye me-2"></i><span id="toggle-inactive-text">Mostrar Inativas</span>
+    </button>
+</div>
+
+<!-- Sources List -->
+<div class="card">
+    <div class="card-header">
+        <ul class="nav nav-tabs card-header-tabs" id="sourcesTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="all-tab" data-bs-toggle="tab" data-bs-target="#all" type="button">
+                    <i class="bi bi-list me-1"></i>Todas
+                </button>
+            </li>
+            {% for type_name, type_sources in by_type.items() %}
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="{{ type_name }}-tab" data-bs-toggle="tab" data-bs-target="#{{ type_name }}" type="button">
+                    {{ type_name|title }} ({{ type_sources|length }})
+                </button>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    <div class="card-body">
+        <div class="tab-content" id="sourcesTabContent">
+            <!-- All Sources -->
+            <div class="tab-pane fade show active" id="all" role="tabpanel">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Status</th>
+                                <th>Nome</th>
+                                <th>Tipo</th>
+                                <th>Região</th>
+                                <th>Idioma</th>
+                                <th>Reputação</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sources-table-body">
+                            {% for source in sources %}
+                            <tr class="source-row {% if not source.is_active %}table-secondary inactive-row d-none{% endif %}" data-source-key="{{ source.key }}">
+                                <td>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input source-toggle" type="checkbox"
+                                               id="toggle-{{ source.key }}"
+                                               data-source-key="{{ source.key }}"
+                                               {% if source.is_active %}checked{% endif %}>
+                                    </div>
+                                </td>
+                                <td>
+                                    <strong>{{ source.name }}</strong>
+                                    {% if not source.is_builtin %}
+                                    <span class="badge bg-info ms-1">Custom</span>
+                                    {% endif %}
+                                    <br>
+                                    <small class="text-muted">{{ source.url }}</small>
+                                </td>
+                                <td><span class="badge bg-secondary">{{ source.type }}</span></td>
+                                <td>{{ source.region }}</td>
+                                <td>{{ source.language }}</td>
+                                <td>
+                                    <span class="badge bg-{{ 'success' if source.reputation_score >= 85 else 'primary' if source.reputation_score >= 70 else 'warning' }}">
+                                        {{ source.reputation_score }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ source.url }}" target="_blank" class="btn btn-outline-primary" title="Visitar site">
+                                            <i class="bi bi-box-arrow-up-right"></i>
+                                        </a>
+                                        {% if not source.is_builtin %}
+                                        <button class="btn btn-outline-danger" onclick="deleteSource('{{ source.key }}')" title="Remover">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- By Type Tabs -->
+            {% for type_name, type_sources in by_type.items() %}
+            <div class="tab-pane fade" id="{{ type_name }}" role="tabpanel">
+                <div class="row g-4">
+                    {% for source in type_sources %}
+                    <div class="col-md-4">
+                        <div class="card h-100 {% if not source.is_active %}border-secondary{% endif %}">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h5 class="card-title mb-0 {% if not source.is_active %}text-muted{% endif %}">
+                                        {{ source.name }}
+                                    </h5>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input source-toggle" type="checkbox"
+                                               data-source-key="{{ source.key }}"
+                                               {% if source.is_active %}checked{% endif %}>
+                                    </div>
+                                </div>
+                                <p class="card-text small text-muted">
+                                    <span class="badge bg-light text-dark me-1">{{ source.region }}</span>
+                                    <span class="badge bg-light text-dark">{{ source.language }}</span>
+                                    <span class="badge bg-{{ 'success' if source.reputation_score >= 85 else 'primary' if source.reputation_score >= 70 else 'warning' }} ms-1">
+                                        {{ source.reputation_score }}
+                                    </span>
+                                </p>
+                                <a href="{{ source.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-box-arrow-up-right me-1"></i>Visitar site
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Reputation Legend -->
+<div class="card mt-4">
+    <div class="card-header">
+        <i class="bi bi-info-circle me-2"></i>Sobre o Score de Reputação
+    </div>
+    <div class="card-body">
+        <p>O score de reputação (0-100) é atribuído baseado em:</p>
+        <ul class="mb-3">
+            <li><strong>Histórico de precisão</strong> - Frequência de correções</li>
+            <li><strong>Transparência editorial</strong> - Políticas de verificação</li>
+            <li><strong>Independência</strong> - Controle editorial</li>
+        </ul>
+        <div class="d-flex gap-3">
+            <span><span class="badge bg-success">85+</span> Excelente</span>
+            <span><span class="badge bg-primary">70-84</span> Muito Boa</span>
+            <span><span class="badge bg-warning">50-69</span> Boa</span>
+        </div>
+    </div>
+</div>
+
+<!-- Add Source Modal -->
+<div class="modal fade" id="addSourceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Adicionar Nova Fonte</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="add-source-form">
+                    <div class="mb-3">
+                        <label for="source-key" class="form-label">Identificador (key)</label>
+                        <input type="text" class="form-control" id="source-key" required
+                               pattern="[a-z0-9_]+" placeholder="ex: minha_fonte">
+                        <small class="text-muted">Apenas letras minúsculas, números e underscore</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="source-name" class="form-label">Nome da Fonte</label>
+                        <input type="text" class="form-control" id="source-name" required placeholder="ex: Minha Fonte">
+                    </div>
+                    <div class="mb-3">
+                        <label for="source-url" class="form-label">URL</label>
+                        <input type="url" class="form-control" id="source-url" required placeholder="https://...">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="source-type" class="form-label">Tipo</label>
+                            <select class="form-select" id="source-type">
+                                <option value="news">Notícias</option>
+                                <option value="analysis">Análise</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="source-language" class="form-label">Idioma</label>
+                            <select class="form-select" id="source-language">
+                                <option value="en">Inglês</option>
+                                <option value="pt-br">Português (BR)</option>
+                                <option value="es">Espanhol</option>
+                                <option value="fr">Francês</option>
+                                <option value="de">Alemão</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="source-region" class="form-label">Região</label>
+                            <select class="form-select" id="source-region">
+                                <option value="global">Global</option>
+                                <option value="brazil">Brasil</option>
+                                <option value="europe">Europa</option>
+                                <option value="asia">Ásia</option>
+                                <option value="middle_east">Oriente Médio</option>
+                                <option value="americas">Américas</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="source-reputation" class="form-label">Reputação (0-100)</label>
+                            <input type="number" class="form-control" id="source-reputation"
+                                   min="0" max="100" value="70">
+                        </div>
+                    </div>
+                </form>
+                <div class="alert alert-info small">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Fontes customizadas utilizam um scraper genérico. Para melhor resultado,
+                    a fonte deve ter feed RSS/Atom disponível.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="addSource()">
+                    <i class="bi bi-plus-circle me-1"></i>Adicionar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let showInactive = false;
+
+// Toggle source active/inactive
+document.querySelectorAll('.source-toggle').forEach(toggle => {
+    toggle.addEventListener('change', async function() {
+        const sourceKey = this.dataset.sourceKey;
+        const isActive = this.checked;
+
+        try {
+            const response = await fetch(`/api/sources/${sourceKey}/toggle?is_active=${isActive}`, {
+                method: 'PUT'
+            });
+            const data = await response.json();
+
+            if (data.error) {
+                showAlert('danger', data.error);
+                this.checked = !isActive; // Reverter
+                return;
+            }
+
+            showAlert('success', data.message);
+            updateSourceRow(sourceKey, isActive);
+            updateCounts();
+        } catch (error) {
+            showAlert('danger', 'Erro ao alterar status: ' + error.message);
+            this.checked = !isActive;
+        }
+    });
+});
+
+function updateSourceRow(sourceKey, isActive) {
+    const row = document.querySelector(`tr[data-source-key="${sourceKey}"]`);
+    if (row) {
+        if (isActive) {
+            row.classList.remove('table-secondary', 'inactive-row');
+            if (!showInactive) row.classList.remove('d-none');
+        } else {
+            row.classList.add('table-secondary', 'inactive-row');
+            if (!showInactive) row.classList.add('d-none');
+        }
+    }
+}
+
+function updateCounts() {
+    const total = document.querySelectorAll('.source-row').length;
+    const active = document.querySelectorAll('.source-toggle:checked').length;
+    document.getElementById('total-sources').textContent = total;
+    document.getElementById('active-sources').textContent = active;
+}
+
+function toggleShowInactive() {
+    showInactive = !showInactive;
+    const inactiveRows = document.querySelectorAll('.inactive-row');
+    const toggleText = document.getElementById('toggle-inactive-text');
+
+    inactiveRows.forEach(row => {
+        row.classList.toggle('d-none', !showInactive);
+    });
+
+    toggleText.textContent = showInactive ? 'Ocultar Inativas' : 'Mostrar Inativas';
+}
+
+async function addSource() {
+    const formData = {
+        key: document.getElementById('source-key').value,
+        name: document.getElementById('source-name').value,
+        url: document.getElementById('source-url').value,
+        source_type: document.getElementById('source-type').value,
+        language: document.getElementById('source-language').value,
+        region: document.getElementById('source-region').value,
+        reputation_score: parseInt(document.getElementById('source-reputation').value)
+    };
+
+    try {
+        const params = new URLSearchParams(formData);
+        const response = await fetch('/api/sources?' + params, {
+            method: 'POST'
+        });
+        const data = await response.json();
+
+        if (data.error) {
+            showAlert('danger', data.error);
+            return;
+        }
+
+        showAlert('success', data.message);
+        bootstrap.Modal.getInstance(document.getElementById('addSourceModal')).hide();
+        setTimeout(() => location.reload(), 1000);
+    } catch (error) {
+        showAlert('danger', 'Erro ao adicionar fonte: ' + error.message);
+    }
+}
+
+async function deleteSource(sourceKey) {
+    if (!confirm(`Tem certeza que deseja remover a fonte "${sourceKey}"?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/sources/${sourceKey}`, {
+            method: 'DELETE'
+        });
+        const data = await response.json();
+
+        if (data.error) {
+            showAlert('danger', data.error);
+            return;
+        }
+
+        showAlert('success', data.message);
+        const row = document.querySelector(`tr[data-source-key="${sourceKey}"]`);
+        if (row) row.remove();
+        updateCounts();
+    } catch (error) {
+        showAlert('danger', 'Erro ao remover fonte: ' + error.message);
+    }
+}
+
+function showAlert(type, message) {
+    const container = document.getElementById('alert-container');
+    const alertHtml = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    container.innerHTML = alertHtml;
+
+    // Auto-dismiss after 3 seconds
+    setTimeout(() => {
+        const alert = container.querySelector('.alert');
+        if (alert) {
+            bootstrap.Alert.getOrCreateInstance(alert).close();
+        }
+    }, 3000);
+}
+</script>
+{% endblock %}

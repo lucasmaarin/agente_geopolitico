@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}Sobre - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <h1 class="mb-4">
+            <i class="bi bi-info-circle text-primary me-2"></i>Sobre o Projeto
+        </h1>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h4>O que é o Agente de Inteligência Geopolítica?</h4>
+                <p>
+                    É um sistema automatizado que coleta, processa e analisa notícias de múltiplas
+                    fontes internacionais confiáveis, com o objetivo de:
+                </p>
+                <ul>
+                    <li><strong>Reduzir o risco de fake news</strong> através de verificação multi-fonte</li>
+                    <li><strong>Detectar viés e propaganda</strong> automaticamente</li>
+                    <li><strong>Explicar eventos complexos</strong> de forma simples e acessível</li>
+                    <li><strong>Projetar cenários futuros</strong> baseados em análise de tendências</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h4>Como funciona?</h4>
+
+                <div class="row g-4 mt-2">
+                    <div class="col-md-6">
+                        <div class="d-flex">
+                            <div class="flex-shrink-0">
+                                <span class="badge bg-primary rounded-circle p-3">1</span>
+                            </div>
+                            <div class="ms-3">
+                                <h6>Coleta</h6>
+                                <p class="small text-muted">
+                                    13+ scrapers coletam artigos de fontes como Reuters, AP, BBC, think tanks, etc.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex">
+                            <div class="flex-shrink-0">
+                                <span class="badge bg-primary rounded-circle p-3">2</span>
+                            </div>
+                            <div class="ms-3">
+                                <h6>Extração</h6>
+                                <p class="small text-muted">
+                                    Identificação automática de países, atores, datas e tópicos mencionados.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex">
+                            <div class="flex-shrink-0">
+                                <span class="badge bg-primary rounded-circle p-3">3</span>
+                            </div>
+                            <div class="ms-3">
+                                <h6>Cruzamento</h6>
+                                <p class="small text-muted">
+                                    Informações são cruzadas entre fontes para identificar convergências e contradições.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex">
+                            <div class="flex-shrink-0">
+                                <span class="badge bg-primary rounded-circle p-3">4</span>
+                            </div>
+                            <div class="ms-3">
+                                <h6>Análise IA</h6>
+                                <p class="small text-muted">
+                                    GPT-4o gera resumos, detecta viés e projeta cenários futuros.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h4>Score de Confiabilidade</h4>
+                <p>Cada relatório recebe um score de 0 a 100 baseado em:</p>
+
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Critério</th>
+                            <th>Pontos</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Número de fontes independentes</td>
+                            <td>20</td>
+                        </tr>
+                        <tr>
+                            <td>Convergência factual entre fontes</td>
+                            <td>25</td>
+                        </tr>
+                        <tr>
+                            <td>Reputação das fontes utilizadas</td>
+                            <td>20</td>
+                        </tr>
+                        <tr>
+                            <td>Ausência de linguagem emocional</td>
+                            <td>15</td>
+                        </tr>
+                        <tr>
+                            <td>Presença de dados verificáveis</td>
+                            <td>10</td>
+                        </tr>
+                        <tr>
+                            <td>Baixo risco de clickbait</td>
+                            <td>10</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h4>Tecnologias Utilizadas</h4>
+                <div class="row g-3 mt-2">
+                    <div class="col-4 col-md-2 text-center">
+                        <i class="bi bi-filetype-py display-4 text-primary"></i>
+                        <p class="small mt-1">Python</p>
+                    </div>
+                    <div class="col-4 col-md-2 text-center">
+                        <i class="bi bi-lightning display-4 text-warning"></i>
+                        <p class="small mt-1">FastAPI</p>
+                    </div>
+                    <div class="col-4 col-md-2 text-center">
+                        <i class="bi bi-globe display-4 text-success"></i>
+                        <p class="small mt-1">Flask</p>
+                    </div>
+                    <div class="col-4 col-md-2 text-center">
+                        <i class="bi bi-robot display-4 text-info"></i>
+                        <p class="small mt-1">OpenAI</p>
+                    </div>
+                    <div class="col-4 col-md-2 text-center">
+                        <i class="bi bi-database display-4 text-secondary"></i>
+                        <p class="small mt-1">SQLite</p>
+                    </div>
+                    <div class="col-4 col-md-2 text-center">
+                        <i class="bi bi-box display-4 text-dark"></i>
+                        <p class="small mt-1">Docker</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <h4>Limitações e Avisos</h4>
+                <ul class="text-muted">
+                    <li>Este sistema é uma ferramenta de auxílio, não substitui análise humana</li>
+                    <li>Os scrapers dependem da estrutura dos sites, que pode mudar</li>
+                    <li>A análise de viés é baseada em padrões, não é infalível</li>
+                    <li>Projeções de cenários são especulativas por natureza</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
