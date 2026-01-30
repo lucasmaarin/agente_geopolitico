@@ -4,7 +4,8 @@
       "Bash(python:*)",
       "Bash(timeout:*)",
       "Bash(curl:*)",
-      "Bash(ping:*)"
+      "Bash(ping:*)",
+      "Bash(dir /b \"c:\\\\Users\\\\lucas\\\\Desktop\\\\Automação\\\\Projetos\\\\geopolitica\\\\automacao_geopolitica\\\\requirements*.txt\")"
     ]
   }
 }

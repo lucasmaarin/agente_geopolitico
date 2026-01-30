@@ -380,6 +380,29 @@ async def generate_report(
                 region="global"
             ))
 
+        # Salvar relatório no Firestore
+        try:
+            saved_report = ReportRepository.create(
+                topic=request.topic,
+                tldr=report.tldr or "N/A",
+                what_happened=report.what_happened or "N/A",
+                why_it_matters=report.why_it_matters or "N/A",
+                winners_losers=report.winners_losers or "N/A",
+                brazil_impact=report.brazil_impact or "N/A",
+                manipulation_risk=report.manipulation_risk or "N/A",
+                simple_explanation=report.simple_explanation or "N/A",
+                future_scenarios=report.future_scenarios or {},
+                confidence_score=confidence.total_score,
+                confidence_breakdown=confidence.to_dict() if hasattr(confidence, 'to_dict') else {},
+                sources_count=report.sources_count,
+                convergence_score=report.convergence_score,
+                sources=[s.get("url", "") for s in report.sources[:10]],
+                bias_detected=report.bias_detected if hasattr(report, 'bias_detected') else []
+            )
+            logger.info(f"Relatório salvo no Firestore com ID: {saved_report.get('id')}")
+        except Exception as save_error:
+            logger.error(f"Erro ao salvar relatório no Firestore: {save_error}")
+
         return ReportResponse(
             topic=request.topic,
             generated_at=report.generated_at,
@@ -484,6 +507,30 @@ def _run_report_generation(task_id: str, topic: str, min_sources: int):
             "alerts": confidence.alerts,
             "formatted_report": result["formatted"]
         }
+
+        # Salvar relatório no Firestore
+        try:
+            saved_report = ReportRepository.create(
+                topic=topic,
+                tldr=report.tldr or "N/A",
+                what_happened=report.what_happened or "N/A",
+                why_it_matters=report.why_it_matters or "N/A",
+                winners_losers=report.winners_losers or "N/A",
+                brazil_impact=report.brazil_impact or "N/A",
+                manipulation_risk=report.manipulation_risk or "N/A",
+                simple_explanation=report.simple_explanation or "N/A",
+                future_scenarios=report.future_scenarios or {},
+                confidence_score=confidence.total_score,
+                confidence_breakdown=confidence.to_dict() if hasattr(confidence, 'to_dict') else {},
+                sources_count=report.sources_count,
+                convergence_score=report.convergence_score,
+                sources=[s.get("url", "") for s in report.sources[:10]],
+                bias_detected=report.bias_detected if hasattr(report, 'bias_detected') else []
+            )
+            report_data["id"] = saved_report.get("id")
+            logger.info(f"Relatório salvo no Firestore com ID: {saved_report.get('id')}")
+        except Exception as save_error:
+            logger.error(f"Erro ao salvar relatório no Firestore: {save_error}")
 
         update_task(task_id, status="completed", progress=100, message="Relatório gerado com sucesso!", result=report_data)
         logger.info(f"Tarefa {task_id} concluída com sucesso")
